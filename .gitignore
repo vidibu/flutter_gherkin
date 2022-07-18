@@ -1,3 +1,6 @@
+.idea/
+flutter_gherkin.iml
+
 .DS_Store
 
 ios/.generated/
