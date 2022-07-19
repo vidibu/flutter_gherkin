@@ -185,9 +185,11 @@ packages:
   gherkin:
     dependency: "direct main"
     description:
-      name: gherkin
-      url: "https://pub.dartlang.org"
-    source: hosted
+      path: "."
+      ref: HEAD
+      resolved-ref: "0b59cf1c7f3c10b0ac8dcf5316e52d4c40e4e212"
+      url: "https://github.com/vidibu/dart_gherkin.git"
+    source: git
     version: "3.1.0"
   glob:
     dependency: "direct main"

@@ -1,9 +1,9 @@
-import 'package:flutter_gherkin/flutter_gherkin.dart';
-import 'package:gherkin/gherkin.dart';
-import 'package:flutter/widgets.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:integration_test/integration_test.dart';
 import 'package:collection/collection.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_gherkin/flutter_gherkin.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:gherkin/gherkin.dart';
+import 'package:integration_test/integration_test.dart';
 
 enum AppLifecyclePhase {
   initialisation,
@@ -32,8 +32,7 @@ class TestDependencies {
 }
 
 abstract class GherkinIntegrationTestRunner {
-  final TagExpressionEvaluator _tagExpressionEvaluator =
-      TagExpressionEvaluator();
+  final TagExpressionEvaluator _tagExpressionEvaluator = TagExpressionEvaluator();
   final FlutterTestConfiguration configuration;
   final StartAppFn appMainFunction;
   final AppLifecyclePumpHandlerFn? appLifecyclePumpHandler;
@@ -69,8 +68,7 @@ abstract class GherkinIntegrationTestRunner {
     configuration.prepare();
     _registerReporters(configuration.reporters);
     _hook = _registerHooks(configuration.hooks);
-    _customParameters =
-        _registerCustomParameters(configuration.customStepParameterDefinitions);
+    _customParameters = _registerCustomParameters(configuration.customStepParameterDefinitions);
     _executableSteps = _registerStepDefinitions(
       configuration.stepDefinitions!,
       _customParameters!,
@@ -130,8 +128,7 @@ abstract class GherkinIntegrationTestRunner {
     Iterable<String>? tags,
   }) async {
     final debugInformation = RunnableDebugInformation(path, 0, name);
-    final featureTags =
-        (tags ?? const Iterable<Tag>.empty()).map((t) => Tag(t.toString(), 0));
+    final featureTags = (tags ?? const Iterable<Tag>.empty()).map((t) => Tag(t.toString(), 0));
     await reporter.feature.onStarted.invoke(
       FeatureMessage(
         name: name,
@@ -181,7 +178,7 @@ abstract class GherkinIntegrationTestRunner {
           if (onBefore != null) {
             await onBefore();
           }
-          bool failed = false;
+          int indexLastSuccessfulStep = -1;
 
           final debugInformation = RunnableDebugInformation(path, 0, name);
           final scenarioTags = (tags ?? const Iterable<Tag>.empty()).map(
@@ -218,20 +215,22 @@ abstract class GherkinIntegrationTestRunner {
                 tags: scenarioTags.toList(),
               ),
             );
-            var hasToSkip = false;
+
             for (int i = 0; i < steps.length; i++) {
-              try {
-                final result = await steps[i](dependencies, hasToSkip);
-                if (_isNegativeResult(result.result)) {
-                  failed = true;
-                  hasToSkip = true;
-                }
-              } catch (e) {
-                failed = true;
-                hasToSkip = true;
+              final result = await steps[i](dependencies, false);
+              if (_isNegativeResult(result.result)) {
+                break;
               }
+              indexLastSuccessfulStep = i;
             }
           } finally {
+            bool failed = steps.length - 1 > indexLastSuccessfulStep;
+
+            final int indexFirstStepToSkip = indexLastSuccessfulStep + 2;
+            for (int i = indexFirstStepToSkip; i < steps.length; i++) {
+              await steps[i](dependencies, true);
+            }
+
             await reporter.scenario.onFinished.invoke(
               ScenarioMessage(
                 name: name,
@@ -291,8 +290,7 @@ abstract class GherkinIntegrationTestRunner {
     WidgetTester tester,
   ) async {
     World? world;
-    final attachmentManager =
-        await configuration.getAttachmentManager(configuration);
+    final attachmentManager = await configuration.getAttachmentManager(configuration);
 
     if (configuration.createWorld != null) {
       world = await configuration.createWorld!(configuration);
@@ -305,9 +303,8 @@ abstract class GherkinIntegrationTestRunner {
       WidgetTesterAppDriverAdapter(
         rawAdapter: tester,
         binding: _binding,
-        waitImplicitlyAfterAction: configuration is FlutterTestConfiguration
-            ? (configuration).waitImplicitlyAfterAction
-            : true,
+        waitImplicitlyAfterAction:
+            configuration is FlutterTestConfiguration ? (configuration).waitImplicitlyAfterAction : true,
       ),
     );
 
@@ -364,8 +361,7 @@ abstract class GherkinIntegrationTestRunner {
           configuration.defaultTimeout,
           parameters,
         );
-        if (!_isNegativeResult(result.result) ||
-            configuration.stepMaxRetries == 0) {
+        if (!_isNegativeResult(result.result) || configuration.stepMaxRetries == 0) {
           break;
         } else {
           await Future.delayed(configuration.retryDelay);
@@ -480,9 +476,7 @@ abstract class GherkinIntegrationTestRunner {
         name: step,
         context: RunnableDebugInformation('', 0, step),
         result: result,
-        attachments: dependencies.attachmentManager
-            .getAttachmentsForContext(step)
-            .toList(),
+        attachments: dependencies.attachmentManager.getAttachmentsForContext(step).toList(),
       ),
     );
   }
@@ -499,8 +493,7 @@ abstract class GherkinIntegrationTestRunner {
         name: step,
         context: RunnableDebugInformation('', 0, step),
         table: table,
-        multilineString:
-            multiLineStrings.isNotEmpty ? multiLineStrings.first : null,
+        multilineString: multiLineStrings.isNotEmpty ? multiLineStrings.first : null,
       ),
     );
   }
@@ -539,4 +532,10 @@ abstract class GherkinIntegrationTestRunner {
       await tester.pumpAndSettle();
     }
   }
+}
+
+bool _isNegativeResult(StepExecutionResult result) {
+  return result == StepExecutionResult.error ||
+      result == StepExecutionResult.fail ||
+      result == StepExecutionResult.timeout;
 }
